@@ -12,6 +12,7 @@ typedef struct {
     char command[MAX_COMMAND_LENGTH];
     char name[MAX_NAME_LENGTH];
     uint32_t salary;
+    int priority;
 } Command;
 
 typedef struct {
@@ -19,8 +20,21 @@ typedef struct {
     int command_count;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    int inserts_done;
+    int current_turn;
 } CommandList;
+
+typedef struct {
+    CommandList *cmd_list;
+    int thread_id;
+} ThreadArgs;
+
+typedef struct hash_struct
+{
+  uint32_t hash;
+  char name[50];
+  uint32_t salary;
+  struct hash_struct *next;
+} hashRecord;
 
 long long current_timestamp() {
     struct timeval te;
@@ -30,41 +44,77 @@ long long current_timestamp() {
 }
 
 void *execute_command(void *arg) {
-    CommandList *cmd_list = (CommandList *)arg;
-    Command cmd;
-    
-    // Lock the mutex to safely access the command list
-    pthread_mutex_lock(&cmd_list->mutex);
-    
-    // Get the command to execute
-    cmd = cmd_list->commands[cmd_list->inserts_done];
-    cmd_list->inserts_done++;
-    
-    // Unlock the mutex after accessing the command
-    pthread_mutex_unlock(&cmd_list->mutex);
-    
-    long long timestamp = current_timestamp();
-    
-    if (strncmp(cmd.command, "insert", 6) == 0) {
-        printf("%lld: INSERT,%s,%u\n", timestamp, cmd.name, cmd.salary);
-        // Call the insert function here
-    } else if (strncmp(cmd.command, "delete", 6) == 0) {
-        // Wait until all inserts are done before executing delete
-        pthread_mutex_lock(&cmd_list->mutex);
-        while (cmd_list->inserts_done < cmd_list->command_count) {
-            pthread_cond_wait(&cmd_list->cond, &cmd_list->mutex);
-        }
-        pthread_mutex_unlock(&cmd_list->mutex);
-        
-        printf("%lld: DELETE,%s\n", timestamp, cmd.name);
-        // Call the delete function here
-    } else if (strncmp(cmd.command, "search", 6) == 0) {
-        printf("%lld: SEARCH,%s\n", timestamp, cmd.name);
-        // Call the search function here
-    } else if (strncmp(cmd.command, "print", 5) == 0) {
-        printf("%lld: PRINT\n", timestamp);
-        // Call the print function here
+    ThreadArgs *args = (ThreadArgs *)arg;
+    CommandList *cmd_list = args->cmd_list;
+    int thread_id = args->thread_id;
+    free(args);
+
+    // Wait for this thread's turn
+    while (cmd_list->current_turn < thread_id) {
+        long long ts = current_timestamp();
+        printf("%lld: THREAD %d WAITING FOR MY TURN\n", ts, thread_id);
+        pthread_cond_wait(&cmd_list->cond, &cmd_list->mutex);
     }
+
+    long long ts = current_timestamp();
+    printf("%lld: THREAD %d AWAKENED FOR WORK\n", ts, thread_id);
+    
+    // Get the command for this thread
+    if (thread_id < cmd_list->command_count) {
+        cmd = cmd_list->commands[thread_id];
+    }
+    
+    // Increment turn for next thread and broadcast
+    cmd_list->current_turn++;
+    pthread_cond_broadcast(&cmd_list->cond);
+    
+    // Unlock before executing command
+    pthread_mutex_unlock(&cmd_list->mutex);
+
+    // Now execute the command (lock only for hash table operations)
+    ts = current_timestamp();
+
+    if (strncmp(cmd.command, "insert", 6) == 0) {
+        printf("%lld: THREAD %d INSERT,%s,%u\n", ts, thread_id, cmd.name, cmd.salary);
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        // Perform insert operation on hash table here
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+    } 
+    else if (strncmp(cmd.command, "delete", 6) == 0) {
+        printf("%lld: THREAD %d DELETE,%s\n", ts, thread_id, cmd.name);
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        // Perform delete operation on hash table here
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+    } 
+    else if (strncmp(cmd.command, "search", 6) == 0) {
+        printf("%lld: THREAD %d SEARCH,%s\n", ts, thread_id, cmd.name);
+        ts = current_timestamp();
+        printf("%lld: THREAD %d READ LOCK ACQUIRED\n", ts, thread_id);
+        // Perform search operation on hash table here
+        ts = current_timestamp();
+        printf("%lld: THREAD %d READ LOCK RELEASED\n", ts, thread_id);
+    } 
+    else if (strncmp(cmd.command, "print", 5) == 0) {
+        printf("%lld: THREAD %d PRINT\n", ts, thread_id);
+        ts = current_timestamp();
+        printf("%lld: THREAD %d READ LOCK ACQUIRED\n", ts, thread_id);
+        // Perform print operation on hash table here
+        ts = current_timestamp();
+        printf("%lld: THREAD %d READ LOCK RELEASED\n", ts, thread_id);
+    } 
+    else if (strncmp(cmd.command, "update", 6) == 0) {
+        printf("%lld: THREAD %d UPDATE,%s,%u\n", ts, thread_id, cmd.name, cmd.salary);
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        // Perform update operation on hash table here
+        ts = current_timestamp();
+        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+    }
+    
     
     return NULL;
 }
@@ -114,25 +164,36 @@ CommandList parse_commands(const char *filename) {
     return cmd_list;
 }
 
+uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
+  size_t i = 0;
+  uint32_t hash = 0;
+  while (i != length) {
+    hash += key[i++];
+    hash += hash << 10;
+    hash ^= hash >> 6;
+  }
+  hash += hash << 3;
+  hash ^= hash >> 11;
+  hash += hash << 15;
+  return hash;
+}
+
 int main() {
     CommandList cmd_list = parse_commands("commands.txt");
     pthread_t *threads = malloc(cmd_list.command_count * sizeof(pthread_t));
 
     // Create threads for each command
     for (int i = 0; i < cmd_list.command_count; i++) {
-        pthread_create(&threads[i], NULL, execute_command, (void *)&cmd_list);
+        ThreadArgs *args = malloc(sizeof(ThreadArgs));
+        args->cmd_list = &cmd_list;
+        args->thread_id = i;
+        pthread_create(&threads[i], NULL, execute_command, (void *)args);
     }
 
     // Join threads
     for (int i = 0; i < cmd_list.command_count; i++) {
         pthread_join(threads[i], NULL);
     }
-
-    // Signal that all inserts are done
-    pthread_mutex_lock(&cmd_list.mutex);
-    cmd_list.inserts_done = cmd_list.command_count; // All inserts are done
-    pthread_cond_broadcast(&cmd_list.cond); // Wake up any waiting deletes
-    pthread_mutex_unlock(&cmd_list.mutex);
 
     // Clean up
     free(cmd_list.commands);
