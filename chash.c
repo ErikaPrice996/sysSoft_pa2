@@ -8,6 +8,8 @@
 #define MAX_NAME_LENGTH 50
 #define MAX_COMMAND_LENGTH 100
 
+FILE *logfile;
+
 typedef struct {
     char command[MAX_COMMAND_LENGTH];
     char name[MAX_NAME_LENGTH];
@@ -56,13 +58,13 @@ void *execute_command(void *arg) {
 
     // Wait for this thread's turn
     while (cmd_list->current_turn < thread_id) {
-        long long ts = current_timestamp();
-        printf("%lld: THREAD %d WAITING FOR MY TURN\n", ts, thread_id);
+        fprintf(logfile, "%lld: THREAD %d WAITING FOR MY TURN\n", current_timestamp(), thread_id);
+        fflush(logfile);
         pthread_cond_wait(&cmd_list->cond, &cmd_list->mutex);
     }
 
-    long long ts = current_timestamp();
-    printf("%lld: THREAD %d AWAKENED FOR WORK\n", ts, thread_id);
+    fprintf(logfile, "%lld: THREAD %d AWAKENED FOR WORK\n", current_timestamp(), thread_id);
+    fflush(logfile);
     
     // Get the command for this thread
     if (thread_id < cmd_list->command_count) {
@@ -76,48 +78,66 @@ void *execute_command(void *arg) {
     // Unlock before executing command
     pthread_mutex_unlock(&cmd_list->mutex);
 
-    // Now execute the command (lock only for hash table operations)
-    ts = current_timestamp();
-
     if (strncmp(cmd.command, "insert", 6) == 0) {
-        printf("%lld: THREAD %d INSERT,%s,%u\n", ts, thread_id, cmd.name, cmd.salary);
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        //get lock
+        printf("%lld: THREAD %d INSERT,%s,%u\n", current_timestamp(), thread_id, cmd.name, cmd.salary);
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+
         // Perform insert operation on hash table here
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+        
+        
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+        //release lock
     } 
     else if (strncmp(cmd.command, "delete", 6) == 0) {
-        printf("%lld: THREAD %d DELETE,%s\n", ts, thread_id, cmd.name);
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        //get lock
+        printf("%lld: THREAD %d DELETE,%s\n", current_timestamp(), thread_id, cmd.name);
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+
         // Perform delete operation on hash table here
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+        
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+        //release lock
     } 
     else if (strncmp(cmd.command, "search", 6) == 0) {
-        printf("%lld: THREAD %d SEARCH,%s\n", ts, thread_id, cmd.name);
-        ts = current_timestamp();
-        printf("%lld: THREAD %d READ LOCK ACQUIRED\n", ts, thread_id);
+        //get lock
+        printf("%lld: THREAD %d SEARCH,%s\n", current_timestamp(), thread_id, cmd.name);
+        fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+
         // Perform search operation on hash table here
-        ts = current_timestamp();
-        printf("%lld: THREAD %d READ LOCK RELEASED\n", ts, thread_id);
+        
+        fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+        //release lock
     } 
     else if (strncmp(cmd.command, "print", 5) == 0) {
-        printf("%lld: THREAD %d PRINT\n", ts, thread_id);
-        ts = current_timestamp();
-        printf("%lld: THREAD %d READ LOCK ACQUIRED\n", ts, thread_id);
+        //get lock
+        printf("%lld: THREAD %d PRINT\n", current_timestamp(), thread_id);
+        fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+
         // Perform print operation on hash table here
-        ts = current_timestamp();
-        printf("%lld: THREAD %d READ LOCK RELEASED\n", ts, thread_id);
+        
+        fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+        //release lock
     } 
     else if (strncmp(cmd.command, "update", 6) == 0) {
-        printf("%lld: THREAD %d UPDATE,%s,%u\n", ts, thread_id, cmd.name, cmd.salary);
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK ACQUIRED\n", ts, thread_id);
+        //get lock
+        printf("%lld: THREAD %d UPDATE,%s,%u\n", current_timestamp(), thread_id, cmd.name, cmd.salary);
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+
         // Perform update operation on hash table here
-        ts = current_timestamp();
-        printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
+
+        fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
+        fflush(logfile);
+        //release lock
     }
     
     return NULL;
@@ -185,6 +205,12 @@ uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
 }
 
 int main() {
+    logfile = fopen("hash.log", "w");
+    if (!logfile) {
+        perror("Failed to open hash.log");
+        exit(EXIT_FAILURE);
+    }
+
     CommandList cmd_list = parse_commands("commands.txt");
     pthread_t *threads = malloc(cmd_list.command_count * sizeof(pthread_t));
 
@@ -206,6 +232,7 @@ int main() {
     free(threads);
     pthread_mutex_destroy(&cmd_list.mutex);
     pthread_cond_destroy(&cmd_list.cond);
+    fclose(logfile);
     
     return 0;
 }
