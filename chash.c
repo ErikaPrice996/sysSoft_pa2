@@ -49,6 +49,11 @@ void *execute_command(void *arg) {
     int thread_id = args->thread_id;
     free(args);
 
+    Command cmd;
+
+    // Lock before waiting
+    pthread_mutex_lock(&cmd_list->mutex);
+
     // Wait for this thread's turn
     while (cmd_list->current_turn < thread_id) {
         long long ts = current_timestamp();
@@ -115,7 +120,6 @@ void *execute_command(void *arg) {
         printf("%lld: THREAD %d WRITE LOCK RELEASED\n", ts, thread_id);
     }
     
-    
     return NULL;
 }
 
@@ -123,7 +127,7 @@ CommandList parse_commands(const char *filename) {
     CommandList cmd_list;
     cmd_list.command_count = 0;
     cmd_list.commands = NULL;
-    cmd_list.inserts_done = 0;
+    cmd_list.current_turn = 0;
     pthread_mutex_init(&cmd_list.mutex, NULL);
     pthread_cond_init(&cmd_list.cond, NULL);
 
@@ -152,9 +156,11 @@ CommandList parse_commands(const char *filename) {
                 token = strtok(NULL, ",");
                 if (token) {
                     cmd_list.commands[index].salary = atoi(token);
-                } else {
-                    cmd_list.commands[index].salary = 0; // Default salary for delete and print
-                }
+                    token = strtok(NULL, ",");
+                    if (token) {
+                        cmd_list.commands[index].priority = atoi(token);
+                    }
+                } 
             }
             index++;
         }
