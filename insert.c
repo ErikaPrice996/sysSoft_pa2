@@ -3,19 +3,29 @@
 #include <string.h>
 #include <pthread.h>
 #include "chash.h"
+#include "insert.h"
 
 // Insert a new record. Prints result to stdout.
-void insert(Command *cmd, int thread_id, unsigned int hashedName)
-{
-    printf("%lld: THREAD %d INSERT,%s,%u\n", current_timestamp(), thread_id, cmd->name, cmd->salary);
-
+void insert(Command *cmd, int thread_id, unsigned int hashedName){
     //Check for duplicate name in the bucket's linked list
-
+    hashRecord *cur = hash_table;
+    while (cur != NULL) {
+        if(cur->hash == hashedName) {
+            printf("Duplicate entry for name %s. Insertion aborted.\n", cmd->name);
+            return;
+        }
+        cur = cur->next;
+    }
+    
     //Create and populate new node 
+    hashRecord *newRecord = (hashRecord *)malloc(sizeof(hashRecord));
+    newRecord->hash = hashedName;
+    strcpy(newRecord->name, cmd->name);
+    newRecord->salary = cmd->salary;
 
     // Insert at head of list 
+    newRecord->next = hash_table;
+    hash_table = newRecord;
 
-    // Release lock 
-
-    printf("Inserted %d,%s,%.2f\n", hashedName, cmd->name, cmd->salary);
+    printf("Inserted %lu,%s,%lu\n", hashedName, cmd->name, cmd->salary);
 }

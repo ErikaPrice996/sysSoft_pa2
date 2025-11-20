@@ -25,6 +25,8 @@ typedef struct hash_struct {
     struct hash_struct *next;
 } hashRecord;
 
+extern hashRecord *hash_table;
+
 typedef struct {
     Command *commands;
     int command_count;

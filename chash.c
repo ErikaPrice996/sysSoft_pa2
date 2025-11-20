@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include "chash.h"
+#include "insert.h"
+
+FILE *logfile;
+hashRecord *hash_table = NULL;
 
 long long current_timestamp() {
     struct timeval te;
@@ -60,7 +64,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        // Perform insert operation on hash table here
+        insert(&cmd, thread_id, hashedName);
         
         //log entry
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
@@ -204,6 +208,8 @@ int main() {
         perror("Failed to open hash.log");
         exit(EXIT_FAILURE);
     }
+
+    hash_table = NULL;
 
     CommandList cmd_list = parse_commands("commands.txt");
     pthread_t *threads = malloc(cmd_list.command_count * sizeof(pthread_t));
