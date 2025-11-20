@@ -20,8 +20,9 @@ typedef struct {
 typedef struct {
     Command *commands;
     int command_count;
-    pthread_mutex_t mutex;
+    pthread_mutex_t turn_mutex;
     pthread_cond_t cond;
+    pthread_rwlock_t hash_lock;
     int current_turn;
 } CommandList;
 
@@ -54,13 +55,14 @@ void *execute_command(void *arg) {
     Command cmd;
 
     // Lock before waiting
-    pthread_mutex_lock(&cmd_list->mutex);
+    pthread_mutex_lock(&cmd_list->turn_mutex);
+
+    fprintf(logfile, "%lld: THREAD %d WAITING FOR MY TURN\n", current_timestamp(), thread_id);
+    fflush(logfile);
 
     // Wait for this thread's turn
     while (cmd_list->current_turn < thread_id) {
-        fprintf(logfile, "%lld: THREAD %d WAITING FOR MY TURN\n", current_timestamp(), thread_id);
-        fflush(logfile);
-        pthread_cond_wait(&cmd_list->cond, &cmd_list->mutex);
+        pthread_cond_wait(&cmd_list->cond, &cmd_list->turn_mutex);
     }
 
     fprintf(logfile, "%lld: THREAD %d AWAKENED FOR WORK\n", current_timestamp(), thread_id);
@@ -76,10 +78,10 @@ void *execute_command(void *arg) {
     pthread_cond_broadcast(&cmd_list->cond);
     
     // Unlock before executing command
-    pthread_mutex_unlock(&cmd_list->mutex);
+    pthread_mutex_unlock(&cmd_list->turn_mutex);
 
     if (strncmp(cmd.command, "insert", 6) == 0) {
-        //get lock
+        pthread_rwlock_wrlock(&cmd_list->hash_lock);
         printf("%lld: THREAD %d INSERT,%s,%u\n", current_timestamp(), thread_id, cmd.name, cmd.salary);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
@@ -89,10 +91,11 @@ void *execute_command(void *arg) {
         
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);
-        //release lock
+        pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "delete", 6) == 0) {
-        //get lock
+        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        
         printf("%lld: THREAD %d DELETE,%s\n", current_timestamp(), thread_id, cmd.name);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
@@ -101,10 +104,11 @@ void *execute_command(void *arg) {
         
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);
-        //release lock
+        pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "search", 6) == 0) {
-        //get lock
+        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        
         printf("%lld: THREAD %d SEARCH,%s\n", current_timestamp(), thread_id, cmd.name);
         fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
@@ -113,10 +117,11 @@ void *execute_command(void *arg) {
         
         fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);
-        //release lock
+        pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "print", 5) == 0) {
-        //get lock
+        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        
         printf("%lld: THREAD %d PRINT\n", current_timestamp(), thread_id);
         fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
@@ -125,10 +130,11 @@ void *execute_command(void *arg) {
         
         fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);
-        //release lock
+        pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "update", 6) == 0) {
-        //get lock
+        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        
         printf("%lld: THREAD %d UPDATE,%s,%u\n", current_timestamp(), thread_id, cmd.name, cmd.salary);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
@@ -137,7 +143,7 @@ void *execute_command(void *arg) {
 
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);
-        //release lock
+        pthread_rwlock_unlock(&cmd_list->hash_lock);
     }
     
     return NULL;
@@ -148,8 +154,9 @@ CommandList parse_commands(const char *filename) {
     cmd_list.command_count = 0;
     cmd_list.commands = NULL;
     cmd_list.current_turn = 0;
-    pthread_mutex_init(&cmd_list.mutex, NULL);
+    pthread_mutex_init(&cmd_list.turn_mutex, NULL);
     pthread_cond_init(&cmd_list.cond, NULL);
+    pthread_rwlock_init(&cmd_list.hash_lock, NULL);
 
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -230,8 +237,9 @@ int main() {
     // Clean up
     free(cmd_list.commands);
     free(threads);
-    pthread_mutex_destroy(&cmd_list.mutex);
+    pthread_mutex_destroy(&cmd_list.turn_mutex);
     pthread_cond_destroy(&cmd_list.cond);
+    pthread_rwlock_destroy(&cmd_list.hash_lock);
     fclose(logfile);
     
     return 0;
