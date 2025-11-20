@@ -56,11 +56,12 @@ void *execute_command(void *arg) {
     if (strncmp(cmd.command, "insert", 6) == 0) {
 
         //hash name
-        unsigned int hashedName = jenkins_one_at_a_time_hash(cmd.name, strlen(cmd.name));
+        uint32_t hashedName = jenkins_one_at_a_time_hash(cmd.name, strlen(cmd.name));
 
         pthread_rwlock_wrlock(&cmd_list->hash_lock);
         
         //log entry
+        fprintf(logfile, "%lld: THREAD %d INSERT,%u,%s,%u\n", current_timestamp(), thread_id, hashedName, cmd.name, cmd.salary);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
@@ -76,7 +77,7 @@ void *execute_command(void *arg) {
         pthread_rwlock_wrlock(&cmd_list->hash_lock);
         
         //log entry
-        printf("%lld: THREAD %d DELETE,%s\n", current_timestamp(), thread_id, cmd.name);
+        fprintf(logfile, "%lld: THREAD %d DELETE,%s\n", current_timestamp(), thread_id, cmd.name);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 

@@ -6,7 +6,7 @@
 #include "insert.h"
 
 // Insert a new record. Prints result to stdout.
-void insert(Command *cmd, int thread_id, unsigned int hashedName){
+void insert(Command *cmd, int thread_id, uint32_t hashedName){
     //Check for duplicate name in the bucket's linked list
     hashRecord *cur = hash_table;
     while (cur != NULL) {
@@ -27,5 +27,5 @@ void insert(Command *cmd, int thread_id, unsigned int hashedName){
     newRecord->next = hash_table;
     hash_table = newRecord;
 
-    printf("Inserted %lu,%s,%lu\n", hashedName, cmd->name, cmd->salary);
+    printf("Inserted %u,%s,%u\n", hashedName, cmd->name, cmd->salary);
 }

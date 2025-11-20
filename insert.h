@@ -8,6 +8,6 @@
 #include "chash.h"
 
 /* Function prototypes */
-void insert(Command *cmd, int thread_id, unsigned int hashedName);
+void insert(Command *cmd, int thread_id, uint32_t hashedName);
 
 #endif
