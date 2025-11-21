@@ -8,6 +8,6 @@
 #include "chash.h"
 
 /* Function prototypes */
-// void delete_hash(Command *cmd, int thread_id, uint32_t hashedName);
+void print();
 
 #endif

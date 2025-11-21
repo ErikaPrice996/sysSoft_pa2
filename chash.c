@@ -7,6 +7,9 @@
 #include "chash.h"
 #include "insert.h"
 #include "delete.h"
+#include "print.h"
+#include "update.h"
+
 
 FILE *logfile;
 hashRecord *hash_table = NULL;
@@ -113,7 +116,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        // Perform print operation on hash table here
+        print();
         
         //log entry
         fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
@@ -129,7 +132,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        // Perform update operation on hash table here
+        update(&cmd, hashedName);
 
         //log entry
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
@@ -227,6 +230,9 @@ int main() {
     for (int i = 0; i < cmd_list.command_count; i++) {
         pthread_join(threads[i], NULL);
     }
+
+    // Final print of hash table
+    print();
 
     // Clean up
     free(cmd_list.commands);
