@@ -6,7 +6,7 @@
 #include "insert.h"
 
 // Insert a new record. Prints result to stdout.
-void insert(Command *cmd, int thread_id, uint32_t hashedName){
+void insert(Command *cmd, uint32_t hashedName){
     //Check for duplicate name in the bucket's linked list
     hashRecord *cur = hash_table;
     while (cur != NULL) {

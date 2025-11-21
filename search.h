@@ -1,5 +1,5 @@
-#ifndef DELETE_H
-#define DELETE_H
+#ifndef SEARCH_H
+#define SEARCH_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +8,6 @@
 #include "chash.h"
 
 /* Function prototypes */
-void delete_hash(uint32_t hashedName);
+void search(Command *cmd, uint32_t hashedName);
 
 #endif

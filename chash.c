@@ -9,6 +9,7 @@
 #include "delete.h"
 #include "print.h"
 #include "update.h"
+#include "search.h"
 
 
 FILE *logfile;
@@ -65,7 +66,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        insert(&cmd, thread_id, hashedName);
+        insert(&cmd, hashedName);
         
         //log entry
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
@@ -81,7 +82,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        delete_hash(&cmd, thread_id, hashedName);
+        delete_hash(hashedName);
         
         //log entry
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
@@ -93,12 +94,11 @@ void *execute_command(void *arg) {
         pthread_rwlock_rdlock(&cmd_list->hash_lock);
         
         //log entry
-        printf("%lld: THREAD %d SEARCH,%s\n", current_timestamp(), thread_id, cmd.name);
         fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        // Perform search operation on hash table here
-        
+        search(&cmd, hashedName);
+
         //log entry
         fprintf(logfile, "%lld: THREAD %d READ LOCK RELEASED\n", current_timestamp(), thread_id);
         fflush(logfile);

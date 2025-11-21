@@ -6,7 +6,7 @@
 #include "delete.h"
 
 // Delete a record. Prints result to stdout.
-void delete_hash(Command *cmd, int thread_id, uint32_t hashedName){
+void delete_hash(uint32_t hashedName){
     // search
     hashRecord *cur = hash_table;
     int nameFound = 0;

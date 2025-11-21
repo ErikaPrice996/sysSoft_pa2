@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -pthread -std=c99 -D_GNU_SOURCE
 LDFLAGS = -pthread
 
 # Source files
-SRCS = chash.c insert.c delete.c print.c update.c #search.c
+SRCS = chash.c insert.c delete.c print.c update.c search.c
 OBJS = $(SRCS:.c=.o)
 TARGET = chash
 
