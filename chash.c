@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include "chash.h"
 #include "insert.h"
+#include "delete.h"
 
 FILE *logfile;
 hashRecord *hash_table = NULL;
@@ -53,11 +54,10 @@ void *execute_command(void *arg) {
     // Unlock before executing command
     pthread_mutex_unlock(&cmd_list->turn_mutex);
 
+    //hash name
+    uint32_t hashedName = jenkins_one_at_a_time_hash(cmd.name, strlen(cmd.name));
+
     if (strncmp(cmd.command, "insert", 6) == 0) {
-
-        //hash name
-        uint32_t hashedName = jenkins_one_at_a_time_hash(cmd.name, strlen(cmd.name));
-
         pthread_rwlock_wrlock(&cmd_list->hash_lock);
         
         //log entry
@@ -81,7 +81,7 @@ void *execute_command(void *arg) {
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
-        // Perform delete operation on hash table here
+        delete_hash(&cmd, thread_id, hashedName);
         
         //log entry
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK RELEASED\n", current_timestamp(), thread_id);
