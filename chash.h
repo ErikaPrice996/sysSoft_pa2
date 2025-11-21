@@ -1,6 +1,8 @@
 #ifndef CHASH_H
 #define CHASH_H
 
+#include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>

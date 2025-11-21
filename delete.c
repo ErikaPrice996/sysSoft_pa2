@@ -12,6 +12,12 @@ void delete_hash(Command *cmd, int thread_id, uint32_t hashedName){
     int nameFound = 0;
     hashRecord *toDelete = NULL;
 
+    // Check if list is empty
+    if (cur == NULL) {
+        printf("Entry %u not deleted. Not in database.\n", hashedName);
+        return;
+    }
+
     if (cur->hash == hashedName) {
         // found at the head of the list
         nameFound = 2;
@@ -39,9 +45,11 @@ void delete_hash(Command *cmd, int thread_id, uint32_t hashedName){
         printf("Entry %u not deleted. Not in database.\n", hashedName);
         return;
     }
-
+    
+    printf("Deleted record for %u,%s,%u\n", hashedName, toDelete->name, toDelete->salary);
+    
     // if found, free memory
     free(toDelete);
 
-    printf("Deleted record for %u,%s,%u\n", hashedName, cmd->name, cmd->salary);
+    
 }

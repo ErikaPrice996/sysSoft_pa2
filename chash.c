@@ -53,12 +53,9 @@ void *execute_command(void *arg) {
     // Increment turn for next thread and broadcast
     cmd_list->current_turn++;
     pthread_cond_broadcast(&cmd_list->cond);
-    
-    // Unlock before executing command
-    pthread_mutex_unlock(&cmd_list->turn_mutex);
 
     //hash name
-    uint32_t hashedName = jenkins_one_at_a_time_hash(cmd.name, strlen(cmd.name));
+    uint32_t hashedName = jenkins_one_at_a_time_hash((const uint8_t *)cmd.name, strlen(cmd.name));
 
     if (strncmp(cmd.command, "insert", 6) == 0) {
         pthread_rwlock_wrlock(&cmd_list->hash_lock);
@@ -93,7 +90,7 @@ void *execute_command(void *arg) {
         pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "search", 6) == 0) {
-        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        pthread_rwlock_rdlock(&cmd_list->hash_lock);
         
         //log entry
         printf("%lld: THREAD %d SEARCH,%s\n", current_timestamp(), thread_id, cmd.name);
@@ -109,10 +106,9 @@ void *execute_command(void *arg) {
         pthread_rwlock_unlock(&cmd_list->hash_lock);
     } 
     else if (strncmp(cmd.command, "print", 5) == 0) {
-        pthread_rwlock_wrlock(&cmd_list->hash_lock);
+        pthread_rwlock_rdlock(&cmd_list->hash_lock);
         
         //log entry
-        printf("%lld: THREAD %d PRINT\n", current_timestamp(), thread_id);
         fprintf(logfile, "%lld: THREAD %d READ LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
@@ -128,7 +124,6 @@ void *execute_command(void *arg) {
         pthread_rwlock_wrlock(&cmd_list->hash_lock);
         
         //log entry
-        printf("%lld: THREAD %d UPDATE,%s,%u\n", current_timestamp(), thread_id, cmd.name, cmd.salary);
         fprintf(logfile, "%lld: THREAD %d WRITE LOCK ACQUIRED\n", current_timestamp(), thread_id);
         fflush(logfile);
 
@@ -140,6 +135,9 @@ void *execute_command(void *arg) {
 
         pthread_rwlock_unlock(&cmd_list->hash_lock);
     }
+
+    // Unlock mutex
+    pthread_mutex_unlock(&cmd_list->turn_mutex);
     
     return NULL;
 }
